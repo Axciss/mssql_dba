@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSSQL DBA Studio - 管理系統</title>
+
+    <!-- Google Fonts Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- FontAwesome 6.4 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <!-- Apache ECharts 5.4 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --sidebar-active: #0284c7;
+            --topbar-height: 60px;
+            --body-bg: #f8fafc;
+            --card-border: #e2e8f0;
+            --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--body-bg);
+            color: #334155;
+            overflow-x: hidden;
+            font-size: 0.875rem;
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: var(--sidebar-bg);
+            color: #94a3b8;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-header {
+            height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+            padding: 0 1.25rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .server-select-box {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .server-select-box select {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        .nav-link-custom {
+            display: flex;
+            align-items: center;
+            padding: 0.7rem 1.25rem;
+            color: #94a3b8;
+            text-decoration: none;
+            font-weight: 500;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-link-custom:hover {
+            background-color: var(--sidebar-hover);
+            color: #f1f5f9;
+        }
+
+        .nav-link-custom.active {
+            background-color: rgba(2, 132, 199, 0.15);
+            color: #38bdf8;
+            border-left-color: #38bdf8;
+        }
+
+        .nav-link-custom i {
+            width: 22px;
+            font-size: 1rem;
+            margin-right: 0.75rem;
+        }
+
+        /* Top Header Styling */
+        #top-header {
+            margin-left: var(--sidebar-width);
+            height: var(--topbar-height);
+            background: #ffffff;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        /* Main Content Styling */
+        #main-content {
+            margin-left: var(--sidebar-width);
+            padding: 1.5rem;
+            min-height: calc(100vh - var(--topbar-height));
+        }
+
+        .view-pane {
+            display: none;
+        }
+
+        .view-pane.active {
+            display: block;
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stat Cards */
+        .stat-card {
+            background: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1.1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .stat-card .title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .stat-card .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 0.2rem;
+        }
+
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .chart-container {
+            background: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        /* High-Density Data Tables */
+        .table-dba {
+            font-size: 0.82rem;
+        }
+
+        .table-dba th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #cbd5e1;
+            padding: 0.6rem 0.75rem;
+        }
+
+        .table-dba td {
+            vertical-align: middle;
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .sql-code-box {
+            font-family: var(--font-mono);
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .sql-snippet-inline {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            max-width: 320px;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pulse-danger {
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar">
+        <div class="brand-header">
+            <i class="fa-solid fa-database text-info me-2"></i>
+            <span>MSSQL Studio</span>
+            <span class="badge bg-primary text-uppercase ms-auto" style="font-size: 0.6rem;">Live Mode</span>
+        </div>
+
+        <div class="server-select-box">
+            <label class="form-label text-xs mb-1 text-slate-400" style="font-size: 0.7rem; color: #94a3b8;">MONITORED INSTANCE</label>
+            <select class="form-select form-select-sm" id="serverSelector">
+                <option value="">載入伺服器清單中...</option>
+            </select>
+        </div>
+
+        <nav class="mt-2 flex-grow-1">
+            <a class="nav-link-custom active" data-view="dashboard">
+                <i class="fa-solid fa-chart-line"></i> 總覽儀表板
+            </a>
+            <a class="nav-link-custom" data-view="activity">
+                <i class="fa-solid fa-heartbeat"></i> 即時活動監控
+            </a>
+            <a class="nav-link-custom" data-view="slow-queries">
+                <i class="fa-solid fa-gauge-high"></i> 慢速查詢分析
+            </a>
+            <a class="nav-link-custom" data-view="maintenance">
+                <i class="fa-solid fa-wrench"></i> 維護與索引優化
+            </a>
+            <a class="nav-link-custom" data-view="error-logs">
+                <i class="fa-solid fa-list-check"></i> 錯誤日誌與告警
+            </a>
+        </nav>
+
+        <div class="p-3 border-top border-secondary border-opacity-25" style="font-size: 0.75rem;">
+            <div class="d-flex justify-content-between text-slate-400 mb-1" style="color: #94a3b8;">
+                <span>API 連線狀態</span>
+                <span id="apiStatusBadge" class="badge bg-secondary">檢查連線中...</span>
+            </div>
+            <div class="text-slate-400 text-muted" style="font-size: 0.68rem;" id="apiModeNotice">
+                連線至 Flask RESTful API 後端
+            </div>
+        </div>
+    </aside>
+
+    <!-- TOP HEADER -->
+    <header id="top-header">
+        <div class="d-flex align-items-center gap-3">
+            <h6 class="mb-0 font-weight-bold" id="pageTitle">總覽儀表板 (Dashboard)</h6>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1">
+                <i class="fa-solid fa-server me-1" style="font-size: 0.65rem;"></i>
+                <span id="connectedServerName">--</span>
+            </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <!-- Auto Refresh Control -->
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-arrows-rotate me-1"></i> 自動刷新</span>
+                <select class="form-select" id="autoRefreshInterval">
+                    <option value="3000" selected>3 秒</option>
+                    <option value="5000">5 秒</option>
+                    <option value="10000">10 秒</option>
+                    <option value="0">關閉</option>
+                </select>
+            </div>
+
+            <!-- Refresh Button -->
+            <button class="btn btn-sm btn-outline-primary" id="manualRefreshBtn" title="手動觸發 API 更新">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+
+            <!-- DBA Admin Profile -->
+            <div class="d-flex align-items-center gap-2 border-start ps-3">
+                <div class="bg-dark text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                    DBA
+                </div>
+                <div class="d-none d-md-block" style="line-height: 1.1;">
+                    <div class="fw-semibold text-sm">dba_admin</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">sysadmin 權限</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main id="main-content">
+
+        <!-- VIEW 1: DASHBOARD -->
+        <div id="view-dashboard" class="view-pane active">
+            <div class="row g-3 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="title">SQL CPU 使用率</div>
+                                <div class="value" id="statCpuVal">-- %</div>
+                                <div class="text-muted text-xs mt-1" id="statCpuSubText">sys.dm_os_ring_buffers</div>
+                            </div>
+                            <div class="stat-icon bg-primary-subtle text-primary">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div id="statCpuBar" class="progress-bar bg-primary" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="title">SQL 記憶體使用</div>
+                                <div class="value" id="statMemoryVal">-- <span class="fs-6 text-muted">MB</span></div>
+                                <div class="text-muted text-xs mt-1">sys.dm_os_process_memory</div>
+                            </div>
+                            <div class="stat-icon bg-info-subtle text-info">
+                                <i class="fa-solid fa-memory"></i>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div id="statMemoryBar" class="progress-bar bg-info" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="title">活躍連線數 (Connections)</div>
+                                <div class="value" id="statConnVal">--</div>
+                                <div class="text-muted text-xs mt-1">sys.dm_exec_sessions</div>
+                            </div>
+                            <div class="stat-icon bg-success-subtle text-success">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="title">受管理的資料庫總數</div>
+                                <div class="value" id="statDbCountVal">--</div>
+                                <div class="text-muted text-xs mt-1">Online Databases</div>
+                            </div>
+                            <div class="stat-icon bg-warning-subtle text-warning">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div class="progress-bar bg-warning" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ECharts Grid -->
+            <div class="row g-3 mb-4">
+                <div class="col-lg-8">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">CPU & 活躍連線歷史趨勢 (即時推播)</h6>
+                            <span class="badge bg-light text-dark border">API: /api/v1/dashboard/metrics</span>
+                        </div>
+                        <div id="chartCpuTrend" style="height: 320px;"></div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="chart-container">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">資料庫容量分配 (Data vs Log MB)</h6>
+                            <span class="badge bg-light text-dark border">sys.master_files</span>
+                        </div>
+                        <div id="chartDbSpace" style="height: 320px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Size Breakdown Table -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 fw-bold">
+                    <i class="fa-solid fa-table me-2 text-primary"></i>資料庫容量與狀態列表
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dba mb-0">
+                            <thead>
+                                <tr>
+                                    <th>資料庫名稱 (Database)</th>
+                                    <th>狀態 (Status)</th>
+                                    <th>Data 檔案大小 (MB)</th>
+                                    <th>Log 檔案大小 (MB)</th>
+                                    <th>總容量 (MB)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dbSizeTableBody">
+                                <tr><td colspan="5" class="text-center text-muted py-3">讀取真實資料庫數據中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: ACTIVITY MONITOR -->
+        <div id="view-activity" class="view-pane">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <!-- Toolbar Controls -->
+                    <div class="row g-2 align-items-center mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="text" class="form-control" id="searchSessionInput" placeholder="搜尋 SPID、使用者、主機或 SQL...">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch pt-1">
+                                <input class="form-check-input" type="checkbox" id="filterBlockedOnly">
+                                <label class="form-check-label fw-semibold text-danger" for="filterBlockedOnly">
+                                    僅顯示被阻塞連線 (Blocked Only)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-sm btn-primary" onclick="fetchActivitySessions()">
+                                <i class="fa-solid fa-arrows-rotate me-1"></i> 重新載入 Session
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sessions Data Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dba align-middle" id="sessionTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">SPID</th>
+                                    <th>使用者 (Login)</th>
+                                    <th>來源主機</th>
+                                    <th>資料庫</th>
+                                    <th>狀態</th>
+                                    <th style="width: 100px;">Blocked By</th>
+                                    <th>Wait Type</th>
+                                    <th>CPU (ms)</th>
+                                    <th>耗時 (s)</th>
+                                    <th>目前執行 T-SQL</th>
+                                    <th class="text-center" style="width: 80px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionTableBody">
+                                <tr><td colspan="11" class="text-center text-muted py-4">連線至 API 獲取 Session 數據中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: SLOW QUERIES -->
+        <div id="view-slow-queries" class="view-pane">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="fw-semibold text-xs text-uppercase text-muted">分析依據:</label>
+                    <span class="badge bg-light text-dark border">sys.dm_exec_query_stats (Top CPU Workload)</span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="fetchSlowQueries()">
+                    <i class="fa-solid fa-arrows-rotate me-1"></i> 刷新 Top 慢速查詢
+                </button>
+            </div>
+
+            <div id="slowQueriesList">
+                <div class="text-center text-muted py-5">載入慢速查詢分析中...</div>
+            </div>
+        </div>
+
+        <!-- VIEW 4: MAINTENANCE -->
+        <div id="view-maintenance" class="view-pane">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <h6 class="fw-bold mb-0">索引碎片率與維護建議</h6>
+                        <div class="input-group input-group-sm" style="width: 260px;">
+                            <span class="input-group-text">選擇 DB</span>
+                            <select class="form-select" id="maintDbSelect" onchange="fetchIndexes()">
+                                <option value="master">master</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="fetchIndexes()">
+                        <i class="fa-solid fa-arrows-rotate me-1"></i> 重新分析索引
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dba align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>資料表名稱 (Table)</th>
+                                    <th>索引名稱 (Index Name)</th>
+                                    <th>碎片率 (Fragmentation)</th>
+                                    <th>Page Count</th>
+                                    <th>建議動作</th>
+                                    <th class="text-center">單獨執行維護</th>
+                                </tr>
+                            </thead>
+                            <tbody id="indexTableBody">
+                                <tr><td colspan="6" class="text-center text-muted py-4">請選取資料庫以讀取索引數據...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 5: ERROR LOGS -->
+        <div id="view-error-logs" class="view-pane">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">SQL Server 錯誤日誌 (sys.xp_readerrorlog)</h6>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="logSeverityFilter" style="width: 140px;" onchange="renderErrorLogs()">
+                            <option value="ALL">全部紀錄</option>
+                            <option value="ERROR">僅 Error / Exception</option>
+                            <option value="WARN">僅 Warning</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm" id="logKeywordInput" placeholder="搜尋 Log 關鍵字..." style="width: 220px;" oninput="renderErrorLogs()">
+                        <button class="btn btn-sm btn-outline-primary" onclick="fetchErrorLogs()">
+                            <i class="fa-solid fa-arrows-rotate me-1"></i> 讀取 Error Log
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-dba font-mono text-xs mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 170px;">時間 Stamp</th>
+                                    <th style="width: 110px;">Process Info</th>
+                                    <th>Log 訊息內容</th>
+                                </tr>
+                            </thead>
+                            <tbody id="errorLogTableBody">
+                                <tr><td colspan="3" class="text-center text-muted py-4">載入 SQL Error Log 中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: KILL SPID CONFIRMATION -->
+    <div class="modal fade" id="killModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h6 class="modal-title fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>終止連線確認 (Kill SPID)</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">您確定要向 MSSQL 發送 <code>KILL &lt;spid&gt;</code> 指令嗎？這將導致此 Session 立即停止並 Rollback 交易。</p>
+                    <div class="bg-light p-3 rounded border mb-3">
+                        <div class="row text-xs g-2">
+                            <div class="col-6"><strong>Target SPID:</strong> <span id="killTargetSpid" class="text-danger fw-bold">--</span></div>
+                            <div class="col-6"><strong>User:</strong> <span id="killTargetUser">--</span></div>
+                            <div class="col-12"><strong>Host:</strong> <span id="killTargetHost">--</span></div>
+                            <div class="col-12"><strong>SQL Text:</strong> <div id="killTargetSql" class="sql-snippet-inline w-100 mt-1">--</div></div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label text-xs fw-semibold">請填寫 DBA 刪除原因 (Audit Log 紀錄):</label>
+                        <input type="text" class="form-control form-control-sm" id="killReasonInput" placeholder="例如：長時間 Blocking 導致系統卡死">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-sm btn-danger fw-bold" id="confirmKillBtn">發送 KILL 命令</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;" id="toastContainer"></div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- PURE REAL-DATA REST API INTEGRATION SCRIPT -->
+    <script>
+        // --- GLOBAL APP STATE ---
+        const state = {
+            selectedServer: '',
+            activeView: 'dashboard',
+            autoRefreshMs: 3000,
+            autoRefreshTimer: null,
+            
+            // Raw Cache Data from API
+            sessions: [],
+            slowQueries: [],
+            indexData: [],
+            errorLogs: [],
+            killTargetSpid: null
+        };
+
+        // --- ECHARTS INSTANCES ---
+        let chartCpu, chartSpace;
+        const cpuHistory = { times: [], cpus: [], sessions: [] };
+
+        // --- CORE REST API FETCH HELPER (NO MOCK GENERATION) ---
+        async function fetchApi(url, method = 'GET', payload = null) {
+            try {
+                const options = { method, headers: { 'Content-Type': 'application/json' } };
+                if (payload) options.body = JSON.stringify(payload);
+
+                const response = await fetch(url, options);
+                const json = await response.json();
+
+                if (!response.ok || json.status === 'error') {
+                    throw new Error(json.message || `HTTP ${response.status} 存取失敗`);
+                }
+
+                setApiStatus(true);
+                return json.data !== undefined ? json.data : json;
+            } catch (err) {
+                console.error(`[API Call Error] ${url}:`, err);
+                setApiStatus(false, err.message);
+                showToast('API 呼叫失敗', err.message, 'danger');
+                return null; // Return null so callers handle empty/error UI cleanly
+            }
+        }
+
+        function setApiStatus(isOnline, errMsg = '') {
+            const badge = document.getElementById('apiStatusBadge');
+            const notice = document.getElementById('apiModeNotice');
+            if (isOnline) {
+                badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                badge.innerText = 'REST API Online';
+                notice.innerText = '資料庫連線正常 (即時數據)';
+            } else {
+                badge.className = 'badge bg-danger text-white pulse-danger';
+                badge.innerText = 'API 斷線 / 錯誤';
+                notice.innerText = errMsg ? `錯誤: ${errMsg}` : '無法連線至 Flask 後端 API';
+            }
+        }
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            initNavigation();
+            initCharts();
+            
+            // 1. Fetch Dynamic Server List
+            await fetchServers();
+
+            // 2. Refresh Currently Active View
+            await refreshActiveView();
+
+            // 3. Start Polling Loop
+            setupAutoRefresh();
+
+            // Global Control Listeners
+            document.getElementById('serverSelector').addEventListener('change', (e) => {
+                state.selectedServer = e.target.value;
+                document.getElementById('connectedServerName').innerText = e.target.value;
+                showToast('切換伺服器', `目標實例變更為: ${e.target.value}`, 'info');
+                refreshActiveView();
+            });
+
+            document.getElementById('autoRefreshInterval').addEventListener('change', (e) => {
+                state.autoRefreshMs = parseInt(e.target.value);
+                setupAutoRefresh();
+            });
+
+            document.getElementById('manualRefreshBtn').addEventListener('click', () => {
+                refreshActiveView();
+            });
+
+            document.getElementById('confirmKillBtn').addEventListener('click', executeKillSpid);
+            document.getElementById('filterBlockedOnly').addEventListener('change', renderSessionTable);
+            document.getElementById('searchSessionInput').addEventListener('input', renderSessionTable);
+        });
+
+        // --- NAVIGATION HANDLER ---
+        function initNavigation() {
+            const navLinks = document.querySelectorAll('#sidebar .nav-link-custom');
+            const viewPanes = document.querySelectorAll('.view-pane');
+            const pageTitle = document.getElementById('pageTitle');
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const viewName = link.getAttribute('data-view');
+                    state.activeView = viewName;
+
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+
+                    viewPanes.forEach(pane => {
+                        pane.classList.toggle('active', pane.id === `view-${viewName}`);
+                    });
+
+                    pageTitle.innerText = link.innerText.trim();
+
+                    if (viewName === 'dashboard') {
+                        setTimeout(() => { chartCpu && chartCpu.resize(); chartSpace && chartSpace.resize(); }, 100);
+                    }
+
+                    refreshActiveView();
+                });
+            });
+        }
+
+        async function refreshActiveView() {
+            if (!state.selectedServer && state.activeView !== 'servers') {
+                return;
+            }
+
+            switch (state.activeView) {
+                case 'dashboard':
+                    await fetchDashboardMetrics();
+                    break;
+                case 'activity':
+                    await fetchActivitySessions();
+                    break;
+                case 'slow-queries':
+                    await fetchSlowQueries();
+                    break;
+                case 'maintenance':
+                    await fetchIndexes();
+                    break;
+                case 'error-logs':
+                    await fetchErrorLogs();
+                    break;
+            }
+        }
+
+        function setupAutoRefresh() {
+            if (state.autoRefreshTimer) clearInterval(state.autoRefreshTimer);
+            if (state.autoRefreshMs > 0) {
+                state.autoRefreshTimer = setInterval(() => {
+                    refreshActiveView();
+                }, state.autoRefreshMs);
+            }
+        }
+
+        // --- 1. SERVERS API ---
+        async function fetchServers() {
+            const data = await fetchApi('/api/v1/servers');
+            const select = document.getElementById('serverSelector');
+            select.innerHTML = '';
+
+            if (data && Array.isArray(data) && data.length > 0) {
+                data.forEach(srv => {
+                    const opt = document.createElement('option');
+                    opt.value = srv.key;
+                    opt.innerText = srv.name || srv.key;
+                    select.appendChild(opt);
+                });
+                state.selectedServer = select.value;
+                document.getElementById('connectedServerName').innerText = select.value;
+            } else {
+                select.innerHTML = '<option value="">無可用伺服器</option>';
+            }
+        }
+
+        // --- 2. DASHBOARD METRICS API ---
+        async function fetchDashboardMetrics() {
+            const data = await fetchApi(`/api/v1/dashboard/metrics?server_key=${state.selectedServer}`);
+            
+            if (!data) {
+                document.getElementById('statCpuVal').innerText = 'Err';
+                document.getElementById('statMemoryVal').innerText = 'Err';
+                document.getElementById('statConnVal').innerText = 'Err';
+                document.getElementById('statDbCountVal').innerText = 'Err';
+                document.getElementById('dbSizeTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">無法連線至 API，無法讀取資料庫資訊</td></tr>';
+                return;
+            }
+
+            const metrics = data.metrics || {};
+            const dbs = data.databases || [];
+
+            // Render Metrics Cards
+            document.getElementById('statCpuVal').innerText = `${metrics.sql_cpu ?? 0} %`;
+            document.getElementById('statCpuBar').style.width = `${Math.min(metrics.sql_cpu || 0, 100)}%`;
+            document.getElementById('statMemoryVal').innerHTML = `${metrics.memory_used_mb ?? 0} <span class="fs-6 text-muted">MB</span>`;
+            document.getElementById('statConnVal').innerText = metrics.active_connections ?? 0;
+            document.getElementById('statDbCountVal').innerText = metrics.total_databases ?? dbs.length;
+
+            // Push Real SQL CPU Data to ECharts
+            const nowTime = new Date().toTimeString().split(' ')[0];
+            cpuHistory.times.push(nowTime);
+            cpuHistory.cpus.push(metrics.sql_cpu || 0);
+            cpuHistory.sessions.push(metrics.active_connections || 0);
+
+            if (cpuHistory.times.length > 15) {
+                cpuHistory.times.shift();
+                cpuHistory.cpus.shift();
+                cpuHistory.sessions.shift();
+            }
+
+            if (chartCpu) {
+                chartCpu.setOption({
+                    xAxis: { data: cpuHistory.times },
+                    series: [
+                        { name: 'CPU %', data: cpuHistory.cpus },
+                        { name: 'Active Sessions', data: cpuHistory.sessions }
+                    ]
+                });
+            }
+
+            // Sync Database list to Maintenance Dropdown if needed
+            syncDatabaseDropdown(dbs);
+
+            // Render Storage Bar Chart & Database Table
+            renderDbStorage(dbs);
+        }
+
+        function syncDatabaseDropdown(dbs) {
+            const maintSelect = document.getElementById('maintDbSelect');
+            const currentVal = maintSelect.value;
+            maintSelect.innerHTML = '';
+
+            if (dbs.length === 0) {
+                maintSelect.innerHTML = '<option value="master">master</option>';
+                return;
+            }
+
+            dbs.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.db_name;
+                opt.innerText = d.db_name;
+                if (d.db_name === currentVal) opt.selected = true;
+                maintSelect.appendChild(opt);
+            });
+        }
+
+        function renderDbStorage(dbs) {
+            const tbody = document.getElementById('dbSizeTableBody');
+            tbody.innerHTML = '';
+
+            if (dbs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">沒有回傳任何資料庫容量資訊</td></tr>';
+                return;
+            }
+
+            const dbNames = [];
+            const dataSizes = [];
+            const logSizes = [];
+
+            dbs.forEach(db => {
+                const dataMb = parseFloat(db.data_size_mb || 0);
+                const logMb = parseFloat(db.log_size_mb || 0);
+                const totalMb = (dataMb + logMb).toFixed(1);
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${escapeHtml(db.db_name)}</strong></td>
+                        <td><span class="badge bg-success-subtle text-success border border-success-subtle">${escapeHtml(db.status || 'ONLINE')}</span></td>
+                        <td>${dataMb} MB</td>
+                        <td>${logMb} MB</td>
+                        <td><strong>${totalMb} MB</strong></td>
+                    </tr>
+                `;
+                dbNames.push(db.db_name);
+                dataSizes.push(dataMb);
+                logSizes.push(logMb);
+            });
+
+            if (chartSpace) {
+                chartSpace.setOption({
+                    yAxis: { data: dbNames },
+                    series: [
+                        { name: 'Data (MB)', data: dataSizes },
+                        { name: 'Log (MB)', data: logSizes }
+                    ]
+                });
+            }
+        }
+
+        // --- 3. ACTIVITY MONITOR & KILL SPID API ---
+        async function fetchActivitySessions() {
+            const blockedOnly = document.getElementById('filterBlockedOnly').checked;
+            const data = await fetchApi(`/api/v1/activity/sessions?server_key=${state.selectedServer}&blocked_only=${blockedOnly}`);
+            
+            state.sessions = Array.isArray(data) ? data : [];
+            renderSessionTable();
+        }
+
+        function renderSessionTable() {
+            const tbody = document.getElementById('sessionTableBody');
+            const filterBlocked = document.getElementById('filterBlockedOnly').checked;
+            const searchText = document.getElementById('searchSessionInput').value.toLowerCase();
+
+            tbody.innerHTML = '';
+
+            if (state.sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">目前沒有活躍的使用者 Session</td></tr>';
+                return;
+            }
+
+            let renderedCount = 0;
+
+            state.sessions.forEach(s => {
+                const isBlocked = s.blocked_by > 0;
+                if (filterBlocked && !isBlocked) return;
+
+                if (searchText) {
+                    const match = s.spid.toString().includes(searchText) ||
+                                  (s.login_name && s.login_name.toLowerCase().includes(searchText)) ||
+                                  (s.host_name && s.host_name.toLowerCase().includes(searchText)) ||
+                                  (s.sql_text && s.sql_text.toLowerCase().includes(searchText));
+                    if (!match) return;
+                }
+
+                renderedCount++;
+                const tr = document.createElement('tr');
+                if (isBlocked) tr.className = 'table-danger';
+
+                tr.innerHTML = `
+                    <td><strong>${s.spid}</strong></td>
+                    <td><i class="fa-regular fa-user text-muted me-1"></i>${escapeHtml(s.login_name || '-')}</td>
+                    <td>${escapeHtml(s.host_name || '-')}</td>
+                    <td><span class="badge bg-light text-dark border">${escapeHtml(s.db_name || 'master')}</span></td>
+                    <td><span class="badge ${s.status === 'RUNNING' ? 'bg-success' : 'bg-warning text-dark'}">${escapeHtml(s.status || '-')}</span></td>
+                    <td>
+                        ${isBlocked ? `<span class="badge bg-danger pulse-danger"><i class="fa-solid fa-lock me-1"></i>SPID ${s.blocked_by}</span>` : '<span class="text-muted">-</span>'}
+                    </td>
+                    <td><code>${escapeHtml(s.wait_type || 'NONE')}</code></td>
+                    <td>${s.cpu_time || 0}</td>
+                    <td>${s.elapsed_seconds || 0}s</td>
+                    <td><div class="sql-snippet-inline" title="${escapeHtml(s.sql_text || '')}">${escapeHtml(s.sql_text || '-')}</div></td>
+                    <td class="text-center">
+                        <button class="btn btn-xs btn-outline-danger py-0" onclick="openKillModal(${s.spid}, '${escapeHtml(s.login_name || '')}', '${escapeHtml(s.host_name || '')}', '${escapeHtml(s.sql_text || '')}')">
+                            Kill
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (renderedCount === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-4">沒有符合搜尋與篩選條件的 Session</td></tr>';
+            }
+        }
+
+        function openKillModal(spid, user, host, sql) {
+            state.killTargetSpid = spid;
+            document.getElementById('killTargetSpid').innerText = spid;
+            document.getElementById('killTargetUser').innerText = user;
+            document.getElementById('killTargetHost').innerText = host;
+            document.getElementById('killTargetSql').innerText = sql;
+            document.getElementById('killReasonInput').value = '';
+
+            const modal = new bootstrap.Modal(document.getElementById('killModal'));
+            modal.show();
+        }
+
+        async function executeKillSpid() {
+            if (!state.killTargetSpid) return;
+
+            const reason = document.getElementById('killReasonInput').value || 'DBA 手動終止';
+            const payload = {
+                server_key: state.selectedServer,
+                spid: state.killTargetSpid,
+                reason: reason
+            };
+
+            const result = await fetchApi('/api/v1/activity/kill', 'POST', payload);
+
+            // Close Modal
+            const modalEl = document.getElementById('killModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+
+            if (result) {
+                showToast('KILL 執行成功', result.message || `SPID ${state.killTargetSpid} 已中斷`, 'success');
+                await fetchActivitySessions();
+            }
+            state.killTargetSpid = null;
+        }
+
+        // --- 4. SLOW QUERIES API ---
+        async function fetchSlowQueries() {
+            const data = await fetchApi(`/api/v1/performance/slow-queries?server_key=${state.selectedServer}`);
+            state.slowQueries = Array.isArray(data) ? data : [];
+
+            const container = document.getElementById('slowQueriesList');
+            container.innerHTML = '';
+
+            if (state.slowQueries.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-5">查無慢速 T-SQL 紀錄 (sys.dm_exec_query_stats)</div>';
+                return;
+            }
+
+            state.slowQueries.forEach((q, idx) => {
+                container.innerHTML += `
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                            <div>
+                                <span class="badge ${idx === 0 ? 'bg-danger' : 'bg-warning text-dark'} me-2">#${idx + 1} AVG CPU: ${q.avg_cpu_ms || 0} ms</span>
+                                <span class="fw-bold">執行次數: ${q.execution_count || 0} 次</span>
+                            </div>
+                            <span class="text-muted text-xs">上次執行: ${q.last_execution_time || '-'}</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2 text-xs">
+                                <div class="col-md-4"><strong>平均邏輯讀取:</strong> ${q.avg_logical_reads || 0} Pages</div>
+                                <div class="col-md-4"><strong>平均 Elapsed Time:</strong> ${q.avg_elapsed_ms || 0} ms</div>
+                                <div class="col-md-4 text-end text-muted">sys.dm_exec_query_stats</div>
+                            </div>
+                            <div class="sql-code-box">${escapeHtml(q.sql_text || '')}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // --- 5. MAINTENANCE & INDEX API ---
+        async function fetchIndexes() {
+            const dbName = document.getElementById('maintDbSelect').value;
+            if (!dbName) return;
+
+            const data = await fetchApi(`/api/v1/maintenance/indexes?server_key=${state.selectedServer}&db_name=${dbName}`);
+            state.indexData = Array.isArray(data) ? data : [];
+
+            const tbody = document.getElementById('indexTableBody');
+            tbody.innerHTML = '';
+
+            if (state.indexData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">資料庫 [${escapeHtml(dbName)}] 沒有碎片率 >= 10% 的索引</td></tr>`;
+                return;
+            }
+
+            state.indexData.forEach(idx => {
+                const frag = parseFloat(idx.fragmentation_percent || 0).toFixed(1);
+                const action = idx.recommended_action || 'NONE';
+
+                let actionBadge = '<span class="badge bg-success">良好 (&lt;10%)</span>';
+                if (action === 'REBUILD') actionBadge = '<span class="badge bg-danger">REBUILD (>30%)</span>';
+                else if (action === 'REORGANIZE') actionBadge = '<span class="badge bg-warning text-dark">REORGANIZE (10-30%)</span>';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><code>${escapeHtml(idx.table_name || '')}</code></td>
+                        <td><code>${escapeHtml(idx.index_name || '')}</code></td>
+                        <td><strong>${frag}%</strong></td>
+                        <td>${idx.page_count || 0}</td>
+                        <td>${actionBadge}</td>
+                        <td class="text-center">
+                            ${action !== 'NONE' ? `
+                                <button class="btn btn-xs btn-outline-primary py-0" onclick="triggerIndexAction('${escapeHtml(idx.table_name)}', '${escapeHtml(idx.index_name)}', '${action}')">
+                                    執行 ${action}
+                                </button>
+                            ` : '<button class="btn btn-xs btn-outline-secondary py-0" disabled>無需處置</button>'}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function triggerIndexAction(tableName, indexName, action) {
+            const dbName = document.getElementById('maintDbSelect').value;
+            showToast('發起索引維護', `正在對 ${tableName}.${indexName} 執行 ${action}...`, 'info');
+
+            const payload = {
+                server_key: state.selectedServer,
+                db_name: dbName,
+                table_name: tableName,
+                index_name: indexName,
+                action: action
+            };
+
+            const result = await fetchApi('/api/v1/maintenance/index-action', 'POST', payload);
+            if (result) {
+                showToast('維護完成', result.message || `${indexName} ${action} 執行完成！`, 'success');
+                await fetchIndexes();
+            }
+        }
+
+        // --- 6. ERROR LOGS API ---
+        async function fetchErrorLogs() {
+            const data = await fetchApi(`/api/v1/logs/errorlog?server_key=${state.selectedServer}`);
+            state.errorLogs = Array.isArray(data) ? data : [];
+            renderErrorLogs();
+        }
+
+        function renderErrorLogs() {
+            const keyword = document.getElementById('logKeywordInput').value.toLowerCase();
+            const severityFilter = document.getElementById('logSeverityFilter').value;
+            const tbody = document.getElementById('errorLogTableBody');
+            tbody.innerHTML = '';
+
+            if (state.errorLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">沒有讀取到 SQL Server Error Log 紀錄</td></tr>';
+                return;
+            }
+
+            let renderedCount = 0;
+
+            state.errorLogs.forEach(log => {
+                const text = log.text || '';
+                const isError = text.includes('Error') || text.includes('Severity');
+                const isWarning = text.includes('Warning') || text.includes('yielding');
+
+                if (severityFilter === 'ERROR' && !isError) return;
+                if (severityFilter === 'WARN' && !isWarning) return;
+
+                if (keyword && !text.toLowerCase().includes(keyword)) return;
+
+                renderedCount++;
+                let rowClass = '';
+                if (isError) rowClass = 'table-danger';
+                else if (isWarning) rowClass = 'table-warning';
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td>${log.log_date || '-'}</td>
+                        <td><span class="badge bg-secondary">${escapeHtml(log.process_info || '-')}</span></td>
+                        <td>${escapeHtml(text)}</td>
+                    </tr>
+                `;
+            });
+
+            if (renderedCount === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">沒有符合關鍵字/層級過濾條件的 Error Log</td></tr>';
+            }
+        }
+
+        // --- ECHARTS INITIALIZATION ---
+        function initCharts() {
+            // CPU Trend
+            chartCpu = echarts.init(document.getElementById('chartCpuTrend'));
+            chartCpu.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { data: ['CPU %', 'Active Sessions'], top: 0 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', boundaryGap: false, data: [] },
+                yAxis: [{ type: 'value', name: 'CPU %', max: 100 }, { type: 'value', name: 'Sessions' }],
+                series: [
+                    { name: 'CPU %', type: 'line', smooth: true, areaStyle: { opacity: 0.1 }, itemStyle: { color: '#0284c7' }, data: [] },
+                    { name: 'Active Sessions', type: 'line', smooth: true, yAxisIndex: 1, itemStyle: { color: '#10b981' }, data: [] }
+                ]
+            });
+
+            // Storage Breakdown
+            chartSpace = echarts.init(document.getElementById('chartDbSpace'));
+            chartSpace.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { top: 0 },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'value', unit: 'MB' },
+                yAxis: { type: 'category', data: [] },
+                series: [
+                    { name: 'Data (MB)', type: 'bar', stack: 'total', itemStyle: { color: '#3b82f6' }, data: [] },
+                    { name: 'Log (MB)', type: 'bar', stack: 'total', itemStyle: { color: '#f59e0b' }, data: [] }
+                ]
+            });
+
+            window.addEventListener('resize', () => {
+                chartCpu && chartCpu.resize();
+                chartSpace && chartSpace.resize();
+            });
+        }
+
+        // --- UTILS ---
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toastId = 'toast_' + Date.now();
+            const badgeBg = type === 'danger' ? 'bg-danger' : (type === 'success' ? 'bg-success' : 'bg-primary');
+
+            const html = `
+                <div id="${toastId}" class="toast align-items-center border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <span class="badge ${badgeBg} me-2">&nbsp;</span>
+                        <strong class="me-auto">${title}</strong>
+                        <small class="text-muted">剛剛</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body text-xs">${message}</div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+            const el = document.getElementById(toastId);
+            const bsToast = new bootstrap.Toast(el, { delay: 4000 });
+            bsToast.show();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

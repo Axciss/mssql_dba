@@ -1,0 +1,23 @@
+import os
+
+class Config:
+    SECRET_KEY = os.getenv("SECRET_KEY", "dba-master-secret-key-2026")
+    JSON_AS_ASCII = False
+    
+    # 可在此設定多台監控目標 (或未來改由 SQLite/MSSQL 系統庫管理)
+    SERVERS = {
+        "coldplate_MES": {
+            "name": "coldplate_MES",
+            "host": "10.20.1.1,1433",
+            "user": "user",
+            "password": "password",
+            "driver": "{ODBC Driver 18 for SQL Server}"
+        },
+        "IHS_MES": {
+            "name": "IHS_MES",
+            "host": "10.20.1.3,1433",
+            "user": "user",
+            "password": "password",
+            "driver": "{ODBC Driver 18 for SQL Server}"
+        }
+    }
